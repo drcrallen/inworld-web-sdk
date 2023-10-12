@@ -106,13 +106,12 @@ export function Chat(props: ChatProps) {
   }, [connection]);
 
   const startRecording = useCallback(async () => {
-    try {
-      connection.sendAudioSessionStart();
-      await connection.recorder.start();
-      setIsRecording(true);
-    } catch (e) {
-      console.error(e);
-    }
+    await Promise.all([
+      connection.sendAudioSessionStart(),
+      connection.recorder.start(),
+    ]).then(() => {setIsRecording(true)}).catch((reason) => {
+      console.error("Failed starting audio: ", reason);
+    });
   }, [connection]);
 
   const playWorkaroundSound = useCallback(() => {
