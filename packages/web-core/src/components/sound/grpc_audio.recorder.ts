@@ -34,9 +34,7 @@ export class GrpcAudioRecorder {
       latencyHint: 'interactive',
     });
     await context.audioWorklet
-      .addModule(
-        'https://storage.googleapis.com/danger-cors-duck-ai-testing/audio.recorder.worklet32.js',
-      )
+      .addModule(new URL('./audio.recorder.worklet.js', import.meta.url))
       .catch(console.error);
     // need to keep track of this two in order to properly disconnect later on;
     this.audioWorkletNode = new AudioWorkletNode(
