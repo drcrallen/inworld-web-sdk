@@ -98,7 +98,7 @@ export class GrpcAudioPlayback<
       (item: AudioQueueItem<InworldPacketT>) =>
         item.packet.packetId.interactionId !== exceptInteractionId &&
         item.packet.packetId.interactionId ===
-          this.currentItem?.packet?.packetId.interactionId,
+        this.currentItem?.packet?.packetId.interactionId,
     );
 
     if (toExlcude.length) {

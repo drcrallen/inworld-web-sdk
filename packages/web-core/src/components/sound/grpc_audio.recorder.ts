@@ -39,7 +39,7 @@ export class GrpcAudioRecorder {
     });
     await context.audioWorklet
       .addModule(
-        'https://storage.googleapis.com/danger-cors-duck-ai-testing/audio.recorder.worklet22.js',
+        'https://storage.googleapis.com/danger-cors-duck-ai-testing/audio.recorder.worklet32.js',
       )
       .catch(console.error);
     // need to keep track of this two in order to properly disconnect later on;
@@ -49,7 +49,10 @@ export class GrpcAudioRecorder {
       {
         numberOfInputs: 1,
         numberOfOutputs: 1,
-        parameterData: {},
+        parameterData: {
+          silenceFloor: 0.01,
+          silenceFlushRatio: 0.08,
+        },
         processorOptions: {},
       },
     );
@@ -66,9 +69,9 @@ export class GrpcAudioRecorder {
       }
     };
     this.currentMediaStreamSourceNode = context.createMediaStreamSource(stream);
-    this.currentMediaStreamSourceNode
-      .connect(this.audioWorkletNode)
-      .connect(context.destination);
+    this.currentMediaStreamSourceNode.connect(this.audioWorkletNode);
+    // This will play out of the speakers as a loopback
+    //.connect(context.destination);
     this.interval = setInterval(() => {
       const n = this.audioWorkletNode;
       if (n) {
