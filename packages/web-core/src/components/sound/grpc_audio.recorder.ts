@@ -2,13 +2,13 @@ export class GrpcAudioRecorder {
   private static SAMPLE_RATE_HZ = 16000;
   private static INTERVAL_TIMEOUT_MS = 200;
 
-  private currentMediaStream: MediaStream | null = null;
+  private currentMediaStreamSourceNode: MediaStreamAudioSourceNode | null = null;
   private audioWorkletNode: AudioWorkletNode | null = null;
   private listener: ((base64AudioChunk: string) => void) | null = null;
   private interval: ReturnType<typeof setInterval> | null = null;
 
   stopConvertion() {
-    if (!this.currentMediaStream) {
+    if (!this.currentMediaStreamSourceNode) {
       return;
     }
     if (this.interval) {
@@ -16,15 +16,15 @@ export class GrpcAudioRecorder {
       this.interval = null;
     }
     this.audioWorkletNode.port.postMessage({ kind: 'flush' });
-    this.currentMediaStream.getTracks().forEach((track) => {
-      track.stop();
-    });
-    this.currentMediaStream = null;
-    this.audioWorkletNode.disconnect();
+    this.currentMediaStreamSourceNode.mediaStream
+      .getTracks()
+      .forEach((t) => t.stop());
+    this.currentMediaStreamSourceNode.disconnect(this.audioWorkletNode);
+    this.currentMediaStreamSourceNode = null;
   }
 
   isRecording() {
-    return this.currentMediaStream != null;
+    return this.currentMediaStreamSourceNode != null;
   }
 
   // Consumes stream that is coming out of local webrtc loopback and converts it to the messages for the server.
@@ -39,11 +39,10 @@ export class GrpcAudioRecorder {
     });
     await context.audioWorklet
       .addModule(
-        'https://storage.googleapis.com/danger-cors-duck-ai-testing/audio.recorder.worklet11.js',
+        'https://storage.googleapis.com/danger-cors-duck-ai-testing/audio.recorder.worklet22.js',
       )
       .catch(console.error);
     // need to keep track of this two in order to properly disconnect later on;
-    this.currentMediaStream = stream;
     this.audioWorkletNode = new AudioWorkletNode(
       context,
       'inworld-audio-worklet-processor',
@@ -66,8 +65,10 @@ export class GrpcAudioRecorder {
         console.warn('unknown event', event);
       }
     };
-    const source = context.createMediaStreamSource(stream);
-    source.connect(this.audioWorkletNode).connect(context.destination);
+    this.currentMediaStreamSourceNode = context.createMediaStreamSource(stream);
+    this.currentMediaStreamSourceNode
+      .connect(this.audioWorkletNode)
+      .connect(context.destination);
     this.interval = setInterval(() => {
       const n = this.audioWorkletNode;
       if (n) {

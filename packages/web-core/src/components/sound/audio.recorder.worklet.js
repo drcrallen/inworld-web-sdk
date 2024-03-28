@@ -22,9 +22,15 @@ class GrpcAudioWorkletProcessor extends AudioWorkletProcessor {
       var _ = parameters;
       _ = outputs;
       _ = inputs;
+      const input0 = inputs[0];
+      const chan0 = input0[0];
+      if (!input0 || !chan0) {
+        // We are disconnected
+        return false;
+      }
       // Clone the array and convert to PCM16iSamples
       const leftChanInputCopy = Int16Array.from(
-        inputs[0][0],
+        chan0,
         (k) => (k < 0 ? k * 0x8000 : 0x7fff * k), //(k) => 32767 * Math.min(1, k),
       );
       this.leftChannel.push(leftChanInputCopy);
