@@ -2,18 +2,14 @@ export class GrpcAudioRecorder {
   private static SAMPLE_RATE_HZ = 16000;
   private static INTERVAL_TIMEOUT_MS = 200;
 
-  private currentMediaStreamSourceNode: MediaStreamAudioSourceNode | null = null;
+  private currentMediaStreamSourceNode: MediaStreamAudioSourceNode | null =
+    null;
   private audioWorkletNode: AudioWorkletNode | null = null;
   private listener: ((base64AudioChunk: string) => void) | null = null;
-  private interval: ReturnType<typeof setInterval> | null = null;
 
   stopConvertion() {
     if (!this.currentMediaStreamSourceNode) {
       return;
-    }
-    if (this.interval) {
-      clearInterval(this.interval);
-      this.interval = null;
     }
     this.audioWorkletNode.port.postMessage({ kind: 'flush' });
     this.currentMediaStreamSourceNode.mediaStream
@@ -72,11 +68,5 @@ export class GrpcAudioRecorder {
     this.currentMediaStreamSourceNode.connect(this.audioWorkletNode);
     // This will play out of the speakers as a loopback
     //.connect(context.destination);
-    this.interval = setInterval(() => {
-      const n = this.audioWorkletNode;
-      if (n) {
-        n.port.postMessage({ kind: 'flush' });
-      }
-    }, GrpcAudioRecorder.INTERVAL_TIMEOUT_MS);
   }
 }
