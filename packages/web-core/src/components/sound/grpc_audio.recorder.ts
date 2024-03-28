@@ -5,11 +5,17 @@ export class GrpcAudioRecorder {
   private currentMediaStream: MediaStream | null = null;
   private audioWorkletNode: AudioWorkletNode | null = null;
   private listener: ((base64AudioChunk: string) => void) | null = null;
+  private interval: ReturnType<typeof setInterval> | null = null;
 
   stopConvertion() {
     if (!this.currentMediaStream) {
       return;
     }
+    if (this.interval) {
+      clearInterval(this.interval);
+      this.interval = null;
+    }
+    this.audioWorkletNode.port.postMessage({ kind: 'flush' });
     this.currentMediaStream.getTracks().forEach((track) => {
       track.stop();
     });
@@ -31,7 +37,11 @@ export class GrpcAudioRecorder {
       sampleRate: GrpcAudioRecorder.SAMPLE_RATE_HZ,
       latencyHint: 'interactive',
     });
-    await context.audioWorklet.addModule('modules/audio.recorder.worklet.js');
+    await context.audioWorklet
+      .addModule(
+        'https://storage.googleapis.com/danger-cors-duck-ai-testing/audio.recorder.worklet11.js',
+      )
+      .catch(console.error);
     // need to keep track of this two in order to properly disconnect later on;
     this.currentMediaStream = stream;
     this.audioWorkletNode = new AudioWorkletNode(
@@ -39,15 +49,30 @@ export class GrpcAudioRecorder {
       'inworld-audio-worklet-processor',
       {
         numberOfInputs: 1,
-        numberOfOutputs: 0,
+        numberOfOutputs: 1,
         parameterData: {},
-        processorOptions: { intervalMs: GrpcAudioRecorder.INTERVAL_TIMEOUT_MS },
+        processorOptions: {},
       },
     );
+    this.audioWorkletNode.onprocessorerror = (event) => {
+      console.error('audio worklet failed', event);
+    };
     this.audioWorkletNode.port.onmessage = (event) => {
-      this.listener(event.data);
+      if (event.data.kind === 'pcm16iaudio') {
+        this.listener(btoa(event.data.data));
+      } else if (event.data.kind === 'message') {
+        console.log(event.data.data);
+      } else {
+        console.warn('unknown event', event);
+      }
     };
     const source = context.createMediaStreamSource(stream);
     source.connect(this.audioWorkletNode).connect(context.destination);
+    this.interval = setInterval(() => {
+      const n = this.audioWorkletNode;
+      if (n) {
+        n.port.postMessage({ kind: 'flush' });
+      }
+    }, GrpcAudioRecorder.INTERVAL_TIMEOUT_MS);
   }
 }

@@ -4,10 +4,11 @@ class GrpcAudioWorkletProcessor extends AudioWorkletProcessor {
     this.leftChannel = [];
     this.recordLength = 0;
     this.processorOptions = options.processorOptions;
-    this.intervalFnInst = null;
-    if (!this.processorOptions.intervalMs) {
-      throw new Error('missing intervalMs');
-    }
+    this.port.onmessage = (event) => {
+      if (event.data.kind === 'flush') {
+        this.flush();
+      }
+    };
   }
   /**
    * Do the actual processing of data
@@ -17,20 +18,31 @@ class GrpcAudioWorkletProcessor extends AudioWorkletProcessor {
    * @returns boolean True always
    */
   process(inputs, outputs, parameters) {
-    var _ = parameters;
-    _ = outputs;
-    _ = inputs;
-    // Clone the array and convert to PCM16iSamples
-    const leftChanInputCopy = Int16Array.from(inputs[0][0], (k) =>
-      k < 0 ? k * 0x8000 : 0x7fff * k,
-    );
-    this.leftChannel.push(leftChanInputCopy);
-    this.recordLength += leftChanInputCopy.length;
-    if (this.intervalFnInst === null) {
-      this.intervalFnInst = setInterval(
-        this.intervalFn,
-        this.processorOptions.intervalMs,
+    try {
+      var _ = parameters;
+      _ = outputs;
+      _ = inputs;
+      // Clone the array and convert to PCM16iSamples
+      const leftChanInputCopy = Int16Array.from(
+        inputs[0][0],
+        (k) => (k < 0 ? k * 0x8000 : 0x7fff * k), //(k) => 32767 * Math.min(1, k),
       );
+      this.leftChannel.push(leftChanInputCopy);
+      this.recordLength += leftChanInputCopy.length;
+
+      /*
+      for (let i = 0; i < Math.min(inputs.length, outputs.length); i++) {
+        for (
+          let j = 0;
+          j < Math.min(inputs[i].length, outputs[i].length);
+          j++
+        ) {
+          outputs[i][j].set(inputs[i][j]);
+        }
+      }
+      */
+    } catch (e) {
+      this.port.postMessage({ kind: 'message', data: e });
     }
     return true;
   }
@@ -44,37 +56,40 @@ class GrpcAudioWorkletProcessor extends AudioWorkletProcessor {
   mergeBuffers(channelBuffer, recordingLength) {
     const result = new Int16Array(recordingLength);
     let offset = 0;
-
     for (let i = 0; i < channelBuffer.length; i++) {
       result.set(channelBuffer[i], offset);
       offset += channelBuffer[i].length;
     }
 
-    return Array.prototype.slice.call(result);
+    return result;
   }
 
-  intervalFn() {
-    if (this.recordingLength === 0) {
-      clearInterval(this.intervalFnInst);
-      this.intervalFnInst = null;
-    }
-    const PCM16iSamples = this.mergeBuffers(
-      this.leftChannel,
-      this.recordingLength,
-    );
-    // reset "buffer" on each iteration
-    this.leftChannel = [];
-    this.recordingLength = 0;
+  flush() {
+    try {
+      if (this.recordLength === 0) {
+        return;
+      }
+      const PCM16iSamples = this.mergeBuffers(
+        this.leftChannel,
+        this.recordLength,
+      );
+      // reset "buffer" on each iteration
+      this.leftChannel = [];
+      this.recordLength = 0;
 
-    this.port.postMessage({
-      data: this.arrayBufferToBase64(PCM16iSamples.buffer),
-    });
+      this.port.postMessage({
+        kind: 'pcm16iaudio',
+        data: this.arrayBufferToBase64(PCM16iSamples.buffer),
+      });
+    } catch (e) {
+      this.port.postMessage({ kind: 'message', data: e });
+    }
   }
 
   /**
    * Convert an audio buffer to a form suitable for sending across net connections
    * @param {ArrayBuffer} buffer Audio data buffer to convert to byte form
-   * @returns A string representation of the audio data.
+   * @returns A string representation of the audio data. It still needs btoa
    */
   arrayBufferToBase64(buffer) {
     let binary = '';
@@ -83,7 +98,7 @@ class GrpcAudioWorkletProcessor extends AudioWorkletProcessor {
     for (let i = 0; i < length; i++) {
       binary += String.fromCharCode(bytes[i]);
     }
-    return window.btoa(binary);
+    return binary;
   }
 }
 
