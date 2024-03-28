@@ -1,3 +1,26 @@
+// https://github.com/microsoft/TypeScript/issues/28308
+interface AudioWorkletProcessor {
+  readonly port: MessagePort;
+}
+interface AudioWorkletProcessorImpl extends AudioWorkletProcessor {
+  process(
+    inputs: Float32Array[][],
+    outputs: Float32Array[][],
+    parameters: Record<string, Float32Array>,
+  ): boolean;
+}
+declare var AudioWorkletProcessor: {
+  prototype: AudioWorkletProcessor;
+  new(): AudioWorkletProcessor;
+};
+interface AudioWorkletProcessorConstructor {
+  new(): AudioWorkletProcessorImpl;
+}
+declare function registerProcessor(
+  name: string,
+  processorCtor: AudioWorkletProcessorConstructor,
+): void;
+
 /**
  * This is a grpc audio bundler with some special consideration for speaking length. It has two timeouts of note:
  * 1. Waiting for more data in the audio stream. It assumes there is up to 50ms of "quiet" before it starts to think things are silent
@@ -6,12 +29,16 @@
  * for a moment while speaking and this handles such a case. It assumes that the longer you speak the more you are likely to pause
  */
 class GrpcAudioWorkletProcessor extends AudioWorkletProcessor {
-  constructor(options) {
+  leftChannel: Int16Array[];
+  recordLength: number;
+  startOfNoise: number | null;
+  targetEndOfNoise: number | null;
+  targetSilence: number;
+  constructor() {
     super();
     this.leftChannel = [];
     this.recordLength = 0;
-    this.processorOptions = options.processorOptions;
-    this.port.onmessage = (event) => {
+    this.port.onmessage = (event: any) => {
       if (event.data.kind === 'flush') {
         this.flush();
       }
@@ -63,11 +90,12 @@ class GrpcAudioWorkletProcessor extends AudioWorkletProcessor {
    * @param {Record<string, Float32Array>} parameters The parameters, which must be declared
    * @returns boolean True always
    */
-  process(inputs, outputs, parameters) {
+  process(
+    inputs: Float32Array[][],
+    outputs: Float32Array[][],
+    parameters: Record<string, Float32Array>,
+  ): boolean {
     try {
-      var _ = parameters;
-      _ = outputs;
-      _ = inputs;
       const input0 = inputs[0];
       const chan0 = input0[0];
       if (!input0 || !chan0) {
@@ -150,7 +178,7 @@ class GrpcAudioWorkletProcessor extends AudioWorkletProcessor {
    * @param {number} recordingLength Memoized length of the arrays
    * @returns A concatenated array
    */
-  mergeBuffers(channelBuffer, recordingLength) {
+  private mergeBuffers(channelBuffer: Int16Array[], recordingLength: number) {
     const result = new Int16Array(recordingLength);
     let offset = 0;
     for (let i = 0; i < channelBuffer.length; i++) {
@@ -188,7 +216,7 @@ class GrpcAudioWorkletProcessor extends AudioWorkletProcessor {
    * @param {ArrayBuffer} buffer Audio data buffer to convert to byte form
    * @returns A string representation of the audio data. It still needs btoa
    */
-  arrayBufferToBase64(buffer) {
+  arrayBufferToBase64(buffer: ArrayBuffer) {
     let binary = '';
     const bytes = new Uint8Array(buffer);
     const length = bytes.byteLength;
@@ -198,5 +226,4 @@ class GrpcAudioWorkletProcessor extends AudioWorkletProcessor {
     return binary;
   }
 }
-
 registerProcessor('inworld-audio-worklet-processor', GrpcAudioWorkletProcessor);
