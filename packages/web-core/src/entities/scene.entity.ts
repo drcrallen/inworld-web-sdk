@@ -10,17 +10,23 @@ import { Character } from './character.entity';
 export interface SceneProps {
   name: string;
   characters?: Character[];
+  description?: string;
+  displayName?: string;
   history?: ProtoPacket[];
 }
 
 export class Scene {
   name: string;
   characters: Character[];
+  description: string;
+  displayName: string;
   history: ProtoPacket[];
 
   constructor(props: SceneProps) {
     this.name = props.name;
     this.characters = props.characters ?? [];
+    this.description = props.description ?? '';
+    this.displayName = props.displayName ?? '';
     this.history = props.history ?? [];
   }
 
@@ -50,15 +56,28 @@ export class Scene {
                     source: {
                       ...packet.routing.source,
                       ...(packet.routing.source.type === ActorType.AGENT && {
-                        name: item.agent?.agentId,
+                        name: item.agent?.agentId ?? packet.routing.source.name,
                       }),
                     },
-                    target: {
-                      ...packet.routing.target,
-                      ...(packet.routing.target.type === ActorType.AGENT && {
-                        name: item.agent?.agentId,
+                    ...(packet.routing.target && {
+                      target: {
+                        ...packet.routing.target,
+                        ...(packet.routing.target.type === ActorType.AGENT && {
+                          name:
+                            item.agent?.agentId ?? packet.routing.target.name,
+                        }),
+                      },
+                    }),
+                    ...(packet.routing.targets?.length && {
+                      targets: packet.routing.targets.map((target) => {
+                        return {
+                          ...target,
+                          ...(target.type === ActorType.AGENT && {
+                            name: item.agent?.agentId ?? target.name,
+                          }),
+                        };
                       }),
-                    },
+                    }),
                   },
                 };
               }),
@@ -72,8 +91,18 @@ export class Scene {
 
     return new Scene({
       name,
+      description: loadedScene?.sceneDescription,
+      displayName: loadedScene?.sceneDisplayName,
       characters,
       history,
     });
+  }
+
+  getCharactersByIds(ids: string[]) {
+    return this.characters.filter((c) => ids.includes(c.id));
+  }
+
+  getCharactersByResourceNames(names: string[]) {
+    return this.characters.filter((c) => names.includes(c.resourceName));
   }
 }

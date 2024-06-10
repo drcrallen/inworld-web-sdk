@@ -5,7 +5,7 @@
   "dependencies": {
     "@emotion/react": "^11.10.6",
     "@emotion/styled": "^11.10.6",
-    "@inworld/web-core": "2.4.0",
+    "@inworld/web-core": "2.5.0",
     "@mui/icons-material": "^5.11.11",
     "@mui/material": "^5.11.13",
     "@react-three/fiber": "^8.13.5",
@@ -22,15 +22,25 @@
     "@types/react-dom": "^18.0.11",
     "@types/three": "^0.154.0",
     "cross-env": "^7.0.3",
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-markdown": "^2.2.1",
+    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-simple-import-sort": "^7.0.0",
+    "prettier": "^2.7.1",
     "typescript": "^4.9.5",
-    "vite": "^5.0.12",
+    "vite": "^5.0.13",
     "vite-plugin-svgr": "^4.2.0",
     "vite-tsconfig-paths": "^4.3.1"
   },
   "scripts": {
     "start": "vite",
     "build": "tsc && vite build",
-    "serve": "vite preview"
+    "serve": "vite preview",
+    "lint:check": "eslint --cache  \"./**/*.{js,jsx,ts,tsx}\" --ignore-path ../../.eslintignore --config ../../.eslintrc.json",
+    "lint:fix": "yarn run lint:check --fix",
+    "prettier:check": "yarn prettier --check \"./**/*.{js,jsx,ts,tsx}\" --ignore-path ../../.eslintignore --config ../../.prettierrc.json",
+    "prettier:format": "yarn prettier --write \"./**/*.{js,jsx,ts,tsx}\" --ignore-path ../../.eslintignore --config ../../.prettierrc.json"
   },
   "browserslist": {
     "production": [

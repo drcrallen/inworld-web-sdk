@@ -27,7 +27,6 @@ import {
 } from '../types/types';
 import { log } from '../utils/Log';
 import { InnequinAnimator } from './animator/InnequinAnimator';
-import { InnequinAssetController } from './controllers/InnequinAssetController';
 import {
   InnequinAnimationType,
   InnequinConfiguration,
@@ -45,7 +44,8 @@ export type InnequinProps = {
 // These variables are constants relating to the names within the 3D files
 // They can change occasionally and eventually these names will be standarized or
 // the names need to be externally passed in via the config variable.
-export const BODY_MATERIAL_NAME = 'T_pose_model_Mannequin_body';
+export const BODY_MATERIAL_NAME_MALE = 'T_pose_model_Mannequin_body';
+export const BODY_MATERIAL_NAME_FEMALE = 'T_pose_model_MannequinFemale_body';
 
 export const MESH_IDS: MESH_TYPE_ID[] = [
   { meshName: 'faceLayer_brows_geo', meshType: MESH_TYPES.BROW },
@@ -123,7 +123,14 @@ export class Innequin {
     return this.getGLTF().scene;
   }
 
+  hasGender(material: MeshPhysicalMaterial) {
+    return [BODY_MATERIAL_NAME_MALE, BODY_MATERIAL_NAME_FEMALE].includes(
+      material.name,
+    );
+  }
+
   loadAnimations() {
+    log('Innequin - Loading Animations');
     for (const animationName in this.config.innequin.animations) {
       const animation: InnequinAnimationType =
         this.config.innequin.animations[animationName];
@@ -148,11 +155,13 @@ export class Innequin {
 
   // Loads the config.json file with the animations, assets and skins character data as well as the global paths to asset files.
   loadConfig() {
+    log('Innequin - Loading Config');
     this.configFile = new JSONFileLoader({ fileURI: this.configURI });
     this.configFile.load(this.onLoadConfig);
   }
 
   loadModel() {
+    log('Innequin - Loading Model');
     const fileURI: string =
       this.baseURI +
       this.config.innequin.baseURIs.MODELS_BODY +
@@ -161,7 +170,7 @@ export class Innequin {
       path: fileURI,
       dracoPath: this.dracoURI,
     });
-    this.modelFile.load(this.onLoadModel);
+    this.modelFile.load(this.onLoadModel.bind(this));
   }
 
   loadVismeMaterials() {
@@ -184,7 +193,9 @@ export class Innequin {
               : MATERIAL_TYPES.VISEME,
           baseURI:
             this.baseURI +
-            this.config.innequin.baseURIs.TEXTURES_FACIAL_EMOTIONS,
+            this.config.innequin.baseURIs.TEXTURES_FACIAL_EMOTIONS +
+            this.config.innequin.defaults.GENDER +
+            '/',
         });
       });
     });
@@ -260,11 +271,13 @@ export class Innequin {
     });
 
     // Hides all the accessories on the model.
-    InnequinAssetController.updateDisplayList(
-      this.getModel() as SkinnedMesh,
-      this.config.innequin.assets,
-    );
+    // Currently this is commented out awaiting future architecture
+    // InnequinAssetController.updateDisplayList(
+    //   this.getModel() as SkinnedMesh,
+    //   this.config.innequin.assets,
+    // );
 
+    log('Innequin - Model Loaded');
     this.loadAnimations();
   }
 
@@ -368,17 +381,15 @@ export class Innequin {
 
   // Helper Function
   addMesh(mesh: SkinnedMesh, type: MESH_TYPES) {
-    if (
-      mesh.material &&
-      (mesh.material as MeshPhysicalMaterial).name === BODY_MATERIAL_NAME
-    )
+    if (mesh.material && this.hasGender(mesh.material as MeshPhysicalMaterial))
       this.modelMaterials[type] = mesh.material as MeshPhysicalMaterial;
     else {
       mesh.traverse((subMesh) => {
         if (
           (subMesh as SkinnedMesh).material &&
-          ((subMesh as SkinnedMesh).material as MeshPhysicalMaterial).name ===
-            BODY_MATERIAL_NAME
+          this.hasGender(
+            (subMesh as SkinnedMesh).material as MeshPhysicalMaterial,
+          )
         ) {
           this.modelMaterials[type] = (subMesh as SkinnedMesh)
             .material as MeshPhysicalMaterial;
