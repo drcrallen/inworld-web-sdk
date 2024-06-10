@@ -11,10 +11,12 @@ interface AudioWorkletProcessorImpl extends AudioWorkletProcessor {
 }
 declare var AudioWorkletProcessor: {
   prototype: AudioWorkletProcessor;
-  new(): AudioWorkletProcessor;
+  // eslint-disable-next-line prettier/prettier
+  new (): AudioWorkletProcessor;
 };
 interface AudioWorkletProcessorConstructor {
-  new(): AudioWorkletProcessorImpl;
+  // eslint-disable-next-line prettier/prettier
+  new (): AudioWorkletProcessorImpl;
 }
 declare function registerProcessor(
   name: string,

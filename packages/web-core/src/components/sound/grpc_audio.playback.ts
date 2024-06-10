@@ -94,11 +94,12 @@ export class GrpcAudioPlayback<
   }
 
   excludeCurrentInteractionPackets(exceptInteractionId: string) {
+    // Linter problems
+    const interactionId = this.currentItem?.packet?.packetId.interactionId;
     const toExlcude = this.audioQueue.filter(
       (item: AudioQueueItem<InworldPacketT>) =>
         item.packet.packetId.interactionId !== exceptInteractionId &&
-        item.packet.packetId.interactionId ===
-        this.currentItem?.packet?.packetId.interactionId,
+        item.packet.packetId.interactionId === interactionId,
     );
 
     if (toExlcude.length) {
