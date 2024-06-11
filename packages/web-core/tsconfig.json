@@ -24,6 +24,7 @@
       "node"
     ],
     "allowJs": true,
+    "sourceMap": true,
   },
   "include": [
     "src/**/*",
